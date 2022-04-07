@@ -42,6 +42,7 @@ namespace WinFormsApp_project
 			this.LoadButton = new System.Windows.Forms.Button();
 			this.SaveButton = new System.Windows.Forms.Button();
 			this.workingArea = new System.Windows.Forms.PictureBox();
+			this.ClearButton = new System.Windows.Forms.Button();
 			this.tableLayoutPanel1.SuspendLayout();
 			this.tableLayoutPanel2.SuspendLayout();
 			this.LanguageBox.SuspendLayout();
@@ -117,6 +118,7 @@ namespace WinFormsApp_project
 			// 
 			// EditionBox
 			// 
+			this.EditionBox.Controls.Add(this.ClearButton);
 			this.EditionBox.Controls.Add(this.DeleteButton);
 			this.EditionBox.Controls.Add(this.colorField);
 			this.EditionBox.Controls.Add(this.ColorButton);
@@ -172,23 +174,23 @@ namespace WinFormsApp_project
 			// 
 			// LoadButton
 			// 
-			this.LoadButton.Enabled = false;
 			this.LoadButton.Location = new System.Drawing.Point(6, 83);
 			this.LoadButton.Name = "LoadButton";
 			this.LoadButton.Size = new System.Drawing.Size(138, 46);
 			this.LoadButton.TabIndex = 2;
 			this.LoadButton.Text = "Wczytaj";
 			this.LoadButton.UseVisualStyleBackColor = true;
+			this.LoadButton.Click += new System.EventHandler(this.LoadButton_Click);
 			// 
 			// SaveButton
 			// 
-			this.SaveButton.Enabled = false;
 			this.SaveButton.Location = new System.Drawing.Point(6, 31);
 			this.SaveButton.Name = "SaveButton";
 			this.SaveButton.Size = new System.Drawing.Size(138, 46);
 			this.SaveButton.TabIndex = 1;
 			this.SaveButton.Text = "Zapisz";
 			this.SaveButton.UseVisualStyleBackColor = true;
+			this.SaveButton.Click += new System.EventHandler(this.SaveButton_Click);
 			// 
 			// workingArea
 			// 
@@ -204,17 +206,29 @@ namespace WinFormsApp_project
 			this.workingArea.MouseMove += new System.Windows.Forms.MouseEventHandler(this.workingArea_MouseMove);
 			this.workingArea.MouseUp += new System.Windows.Forms.MouseEventHandler(this.workingArea_MouseUp);
 			// 
+			// ClearButton
+			// 
+			this.ClearButton.Location = new System.Drawing.Point(7, 80);
+			this.ClearButton.Name = "ClearButton";
+			this.ClearButton.Size = new System.Drawing.Size(132, 24);
+			this.ClearButton.TabIndex = 3;
+			this.ClearButton.Text = "Wyczyść graf";
+			this.ClearButton.UseVisualStyleBackColor = true;
+			this.ClearButton.Click += new System.EventHandler(this.ClearButton_Click);
+			// 
 			// Form1
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
 			this.ClientSize = new System.Drawing.Size(784, 561);
 			this.Controls.Add(this.tableLayoutPanel1);
+			this.KeyPreview = true;
 			this.MinimumSize = new System.Drawing.Size(800, 600);
 			this.Name = "Form1";
 			this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
 			this.Text = "Form1";
 			this.SizeChanged += new System.EventHandler(this.Form1_SizeChanged);
+			this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.Form1_KeyDown);
 			this.tableLayoutPanel1.ResumeLayout(false);
 			this.tableLayoutPanel2.ResumeLayout(false);
 			this.LanguageBox.ResumeLayout(false);
@@ -241,6 +255,7 @@ namespace WinFormsApp_project
 		private System.Windows.Forms.Button ColorButton;
 		private System.Windows.Forms.Label colorField;
 		private System.Windows.Forms.Button DeleteButton;
+		private System.Windows.Forms.Button ClearButton;
 	}
 }
 
