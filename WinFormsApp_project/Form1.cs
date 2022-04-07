@@ -24,8 +24,8 @@ namespace WinFormsApp_project
 		private int chosenVertNR;
 		private Point mousePosition;
 		private bool mouseIsDown;
-		private Point clickedVert;
-		private int clickedVertNR;
+		private Point new_vertexPosition;
+		private List<(Point p1, Point p2)> edges;
 
 		public Form1()
 		{
@@ -48,13 +48,14 @@ namespace WinFormsApp_project
 			chosenVert = new Point(-1, -1);
 			chosenVertNR = -1;
 			mousePosition = new Point(-1, -1);
-			clickedVert = new Point(-1, -1);
-			clickedVertNR = -1;
+			mouseIsDown = false;
+			new_vertexPosition = new Point();
+			edges = new List<(Point p1, Point p2)>();
 		}
 
 		private void Form1_SizeChanged(object sender, EventArgs e)
 		{
-			int it = 1;
+			int it = 0;
 			var newsize = tableLayoutPanel1.GetControlFromPosition(0, 0).Size;
 			drawArea = new Bitmap(newsize.Width, newsize.Height);
 			workingArea.Image = drawArea;
@@ -83,7 +84,7 @@ namespace WinFormsApp_project
 
 		private void workingArea_MouseDown(object sender, MouseEventArgs e)
 		{
-			bool flag = false;
+			int flag = -1;
 
 			if (e.Button == MouseButtons.Left)
 			{
@@ -91,6 +92,7 @@ namespace WinFormsApp_project
 				{
 					if (vertNumber > 0)
 					{
+						int it = 0;
 						foreach (var v in verts)
 						{
 							int yDiff = Math.Abs(v.point.Y - e.Y);
@@ -98,20 +100,32 @@ namespace WinFormsApp_project
 
 							if ((yDiff < 2 * RADIUS) && (xDiff < 2 * RADIUS))
 							{
-								flag = true;
+								flag = it;
+								break;
 							}
+							it++;
 						}
 					}
 
-					if (flag == true) return;
+					if (flag != -1) // add edge
+					{
 
-					g.DrawEllipse(pen, e.X - RADIUS, e.Y - RADIUS, RADIUS * 2, RADIUS * 2);
-					g.DrawString(vertNumber.ToString(),
-						new Font("Ink Free", 12),
-						new SolidBrush(vertColor),
-						e.X, e.Y,
-						new StringFormat()
-						{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+					}
+					else // add vertex
+					{
+						g.DrawEllipse(pen, e.X - RADIUS, e.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+						g.DrawString(vertNumber.ToString(),
+							new Font("Ink Free", 12),
+							new SolidBrush(vertColor),
+							e.X, e.Y,
+							new StringFormat()
+							{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+						if (chosenVertNR != -1)
+						{
+							g.DrawEllipse(whitePen, chosenVert.X - RADIUS, chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+						}
+					}
+
 				}
 				verts.Add((new Point(e.X, e.Y), vertColor));
 				vertNumber++;
@@ -169,7 +183,7 @@ namespace WinFormsApp_project
 					{
 						chosenVert.X = verts[iBest].point.X;
 						chosenVert.Y = verts[iBest].point.Y;
-						chosenVertNR = i;
+						chosenVertNR = iBest;
 						g.DrawEllipse(whitePen, chosenVert.X - RADIUS, chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2);
 						workingArea.Refresh();
 					}
@@ -178,30 +192,11 @@ namespace WinFormsApp_project
 				}
 				workingArea.Refresh();
 			}
-			else if (e.Button == MouseButtons.Middle)
+			else if (e.Button == MouseButtons.Middle && chosenVertNR != -1)
 			{
-
-				int yDiffBest = int.MaxValue;
-				int xDiffBest = int.MaxValue;
-
-				int i = 0;
-
-				foreach (var v in verts)
-				{
-					int yDiff = Math.Abs(v.point.Y - e.Y);
-					int xDiff = Math.Abs(v.point.X - e.X);
-
-					if ((yDiff < 2 * RADIUS) && (xDiff < 2 * RADIUS) && yDiff < yDiffBest && xDiff < xDiffBest)
-					{
-						xDiffBest = xDiff;
-						yDiffBest = yDiff;
-						clickedVertNR = i;
-						clickedVert.Y = v.point.Y;
-						clickedVert.X = v.point.X;
-						mouseIsDown = true;
-					}
-					i++;
-				}
+				mousePosition.X = e.X;
+				mousePosition.Y = e.Y;
+				mouseIsDown = true;
 			}
 		}
 
@@ -269,21 +264,33 @@ namespace WinFormsApp_project
 
 		private void workingArea_MouseMove(object sender, MouseEventArgs e)
 		{
-			mousePosition.X = e.X;
-			mousePosition.Y = e.Y;
+			new_vertexPosition.X = e.X - mousePosition.X + chosenVert.X;
+			new_vertexPosition.Y = e.Y - mousePosition.Y + chosenVert.Y;
 
 			if (mouseIsDown == true)
 			{
-				if (clickedVertNR != -1)
+				if (chosenVert.X != -1)
 				{
 					using (Graphics g = Graphics.FromImage(drawArea))
 					{
 						g.Clear(Color.LightBlue);
-						g.DrawEllipse(pen, mousePosition.X - RADIUS, mousePosition.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+						g.DrawEllipse(pen, e.X - mousePosition.X + chosenVert.X - RADIUS, e.Y - mousePosition.Y + chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+						g.DrawString(chosenVertNR.ToString(),
+						new Font("Ink Free", 12),
+						new SolidBrush(vertColor),
+						e.X - mousePosition.X + chosenVert.X, e.Y - mousePosition.Y + chosenVert.Y,
+						new StringFormat()
+						{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
 					}
 					int it = 0;
 					foreach (var v in verts)
 					{
+						if (it == chosenVertNR)
+						{
+							++it;
+							continue;
+						}
+
 						using (Graphics g = Graphics.FromImage(drawArea))
 						{
 							g.DrawEllipse(new Pen(v.color, 3), v.point.X - RADIUS, v.point.Y - RADIUS, RADIUS * 2, RADIUS * 2);
@@ -296,6 +303,10 @@ namespace WinFormsApp_project
 						}
 						++it;
 					}
+					using (Graphics g = Graphics.FromImage(drawArea))
+					{
+						g.DrawEllipse(whitePen, e.X - mousePosition.X + chosenVert.X - RADIUS, e.Y - mousePosition.Y + chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+					}
 
 				}
 				workingArea.Refresh();
@@ -304,7 +315,31 @@ namespace WinFormsApp_project
 
 		private void workingArea_MouseUp(object sender, MouseEventArgs e)
 		{
-			mouseIsDown = false;
+			if (mouseIsDown == true)
+			{
+				chosenVert.X = e.X - mousePosition.X + chosenVert.X;
+				chosenVert.Y = e.Y - mousePosition.Y + chosenVert.Y;
+
+				verts[chosenVertNR] = (new Point(chosenVert.X, chosenVert.Y), vertColor);
+
+				int it = 0;
+				foreach (var v in verts)
+				{
+					using (Graphics g = Graphics.FromImage(drawArea))
+					{
+						g.DrawEllipse(new Pen(v.color, 3), v.point.X - RADIUS, v.point.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+						g.DrawString(it.ToString(),
+							new Font("Ink Free", 12),
+							new SolidBrush(v.color),
+							v.point.X, v.point.Y,
+							new StringFormat()
+							{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+					}
+					++it;
+				}
+
+				mouseIsDown = false;
+			}
 		}
 	}
 }
