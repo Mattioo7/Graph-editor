@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -125,6 +126,60 @@ namespace WinFormsApp_project
 
 					if (flag != -1 && chosenVertNR != -1) // add edge
 					{
+						if (flag == chosenVertNR) return;
+
+						// remove edge
+						Point tmp = new Point(verts[flag].point.X, verts[flag].point.Y);
+						int itt = 0;
+						bool removeEdgeFlag = false;
+						foreach (var edge in edges)
+						{
+							
+							if (edge.p1.X == tmp.X && edge.p1.Y == tmp.Y)
+							{
+								removeEdgeFlag = true;
+								break;
+							}
+							else if (edge.p2.X == tmp.X && edge.p2.Y == tmp.Y)
+							{
+								removeEdgeFlag = true;
+								break;
+							}
+							itt++;
+						}
+
+						if (removeEdgeFlag == true)
+						{
+							edges.RemoveAt(itt);
+
+							g.Clear(Color.LightBlue);
+
+							int ittt = 0;
+							foreach (var edge in edges)
+							{
+								g.DrawLine(pen, edge.p1, edge.p2);
+							}
+
+							foreach (var v in verts)
+							{
+								g.FillEllipse(Brushes.LightBlue, v.point.X - RADIUS + 2, v.point.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2);
+								g.DrawEllipse(new Pen(v.color, 3), v.point.X - RADIUS, v.point.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+								g.DrawString(ittt.ToString(),
+									new Font("Ink Free", 12),
+									new SolidBrush(v.color),
+									v.point.X, v.point.Y,
+									new StringFormat()
+									{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+								++ittt;
+							}
+							if (chosenVertNR != -1)
+							{
+								g.DrawEllipse(whitePen, chosenVert.X - RADIUS, chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+							}
+							workingArea.Refresh();
+							return;
+						}
+						
 						edges.Add((chosenVert, verts[flag].point));
 						g.DrawLine(pen, chosenVert, verts[flag].point);
 
@@ -276,12 +331,39 @@ namespace WinFormsApp_project
 				it++;
 			}
 			verts.RemoveAt(it);
+
+			it = -1;
+			List<int> toRemove = new List<int>();
+			foreach (var edge in edges)
+			{
+				it++;
+				if (edge.p1 == chosenVert)
+				{
+					toRemove.Add(it);
+				}
+				else if (edge.p2 == chosenVert)
+				{
+					toRemove.Add(it);
+				}
+			}
+			toRemove.Reverse();
+			int toRemoveCount = toRemove.Count;
+			for (int i = 0; i < toRemoveCount; ++i)
+			{
+				edges.RemoveAt(toRemove[i]);
+			}
+
 			it = 0;
 			using (Graphics g = Graphics.FromImage(drawArea))
 			{
 				g.Clear(Color.LightBlue);
+				foreach (var edge in edges)
+				{
+					g.DrawLine(pen, edge.p1, edge.p2);
+				}
 				foreach (var v in verts)
 				{
+					g.FillEllipse(Brushes.LightBlue, v.point.X - RADIUS + 2, v.point.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2);
 					g.DrawEllipse(new Pen(v.color, 3), v.point.X - RADIUS, v.point.Y - RADIUS, RADIUS * 2, RADIUS * 2);
 					g.DrawString(it.ToString(),
 						new Font("Ink Free", 12),
@@ -291,6 +373,7 @@ namespace WinFormsApp_project
 						{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
 					++it;
 				}
+
 			}
 			chosenVert.X = -1;
 			chosenVertNR = -1;
@@ -302,6 +385,16 @@ namespace WinFormsApp_project
 		private void workingArea_MouseMove(object sender, MouseEventArgs e)
 		{
 			new_vertexPosition.X = e.X - mousePosition.X + chosenVert.X;
+
+			/*if (new_vertexPosition.X < 0)
+			{
+				new_vertexPosition.X = 0;
+			}*/
+			/*if (new_vertexPosition.X > this.Size.Width)
+			{
+				new_vertexPosition.X = 0;
+			}*/
+
 			new_vertexPosition.Y = e.Y - mousePosition.Y + chosenVert.Y;
 
 			if (mouseIsDown == true)
@@ -312,7 +405,8 @@ namespace WinFormsApp_project
 					{
 						g.Clear(Color.LightBlue);
 
-						g.DrawEllipse(pen, e.X - mousePosition.X + chosenVert.X - RADIUS, e.Y - mousePosition.Y + chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+						////g.DrawEllipse(pen, e.X - mousePosition.X + chosenVert.X - RADIUS, e.Y - mousePosition.Y + chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+						g.DrawEllipse(pen, new_vertexPosition.X - RADIUS, e.Y - mousePosition.Y + chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2); //
 						g.DrawString(chosenVertNR.ToString(),
 							new Font("Ink Free", 12),
 							new SolidBrush(vertColor),
@@ -327,7 +421,8 @@ namespace WinFormsApp_project
 							
 							using (Graphics g = Graphics.FromImage(drawArea))
 							{
-								g.DrawLine(pen, edge.p2, new Point(e.X - mousePosition.X + chosenVert.X, e.Y - mousePosition.Y + chosenVert.Y));
+								////g.DrawLine(pen, edge.p2, new Point(e.X - mousePosition.X + chosenVert.X, e.Y - mousePosition.Y + chosenVert.Y));
+								g.DrawLine(pen, edge.p2, new Point(new_vertexPosition.X, e.Y - mousePosition.Y + chosenVert.Y)); //
 								//g.FillEllipse(Brushes.Red, e.X - mousePosition.X + chosenVert.X - RADIUS + 2, e.Y - mousePosition.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2);
 							}
 							continue;
@@ -336,7 +431,8 @@ namespace WinFormsApp_project
 						{
 							using (Graphics g = Graphics.FromImage(drawArea))
 							{
-								g.DrawLine(pen, edge.p1, new Point(e.X - mousePosition.X + chosenVert.X, e.Y - mousePosition.Y + chosenVert.Y));
+								////g.DrawLine(pen, edge.p1, new Point(e.X - mousePosition.X + chosenVert.X, e.Y - mousePosition.Y + chosenVert.Y));
+								g.DrawLine(pen, edge.p1, new Point(new_vertexPosition.X, e.Y - mousePosition.Y + chosenVert.Y)); //
 								//g.FillEllipse(Brushes.Green, e.X - mousePosition.X + chosenVert.X - RADIUS + 2, e.Y - mousePosition.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2);
 							}
 							continue;
@@ -374,14 +470,16 @@ namespace WinFormsApp_project
 					}
 					using (Graphics g = Graphics.FromImage(drawArea))
 					{
-						g.FillEllipse(Brushes.LightBlue, e.X - mousePosition.X + chosenVert.X - RADIUS + 2, e.Y - mousePosition.Y + chosenVert.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2);
+						////g.FillEllipse(Brushes.LightBlue, e.X - mousePosition.X + chosenVert.X - RADIUS + 2, e.Y - mousePosition.Y + chosenVert.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2);
+						g.FillEllipse(Brushes.LightBlue, new_vertexPosition.X - RADIUS + 2, e.Y - mousePosition.Y + chosenVert.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2); //
 						g.DrawString(chosenVertNR.ToString(),
 								new Font("Ink Free", 12),
 								new SolidBrush(vertColor),
-								e.X - mousePosition.X + chosenVert.X, e.Y - mousePosition.Y + chosenVert.Y,
+								new_vertexPosition.X, e.Y - mousePosition.Y + chosenVert.Y,
 								new StringFormat()
 								{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
-						g.DrawEllipse(whitePen, e.X - mousePosition.X + chosenVert.X - RADIUS, e.Y - mousePosition.Y + chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+						////g.DrawEllipse(whitePen, e.X - mousePosition.X + chosenVert.X - RADIUS, e.Y - mousePosition.Y + chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+						g.DrawEllipse(whitePen, new_vertexPosition.X - RADIUS, e.Y - mousePosition.Y + chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2); //
 					}
 
 				}
@@ -613,6 +711,66 @@ namespace WinFormsApp_project
 			}
 
 			workingArea.Refresh();
+		}
+
+		private void PolishLanguageButton_Click(object sender, EventArgs e)
+		{
+			LanguageChanged("pl-PL");
+		}
+
+		private void EnglishLanguageButton_Click(object sender, EventArgs e)
+		{
+			LanguageChanged("en-US");
+		}
+
+		private void LanguageChanged(string lang)
+		{
+			var culture = new CultureInfo(lang);
+			CultureInfo.DefaultThreadCurrentCulture = culture;
+			CultureInfo.DefaultThreadCurrentUICulture = culture;
+			this.Controls.Clear();
+
+			var size = Size;
+			InitializeComponent();
+			Size = size;
+			this.KeyPreview = true;
+			if (chosenVertNR != -1)
+			{
+				DeleteButton.Enabled = true;
+			}
+			//workingArea.Cursor = 
+
+			colorField.BackColor = vertColor;
+			workingArea.Image = drawArea;
+			using (Graphics g = Graphics.FromImage(drawArea))
+			{
+				g.Clear(Color.LightBlue);
+
+				int it = 0;
+				foreach (var edge in edges)
+				{
+					g.DrawLine(pen, edge.p1, edge.p2);
+				}
+
+				foreach (var v in verts)
+				{
+					g.FillEllipse(Brushes.LightBlue, v.point.X - RADIUS + 2, v.point.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2);
+					g.DrawEllipse(new Pen(v.color, 3), v.point.X - RADIUS, v.point.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+					g.DrawString(it.ToString(),
+						new Font("Ink Free", 12),
+						new SolidBrush(v.color),
+						v.point.X, v.point.Y,
+						new StringFormat()
+						{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+					++it;
+				}
+				if (chosenVertNR != -1)
+				{
+					g.DrawEllipse(whitePen, chosenVert.X - RADIUS, chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+				}
+			}
+			workingArea.Refresh();
+			ColorButton.Focus();
 		}
 	}
 }
