@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,19 +15,19 @@ namespace WinFormsApp_project
 	public partial class Form1 : Form
 	{
 		private Bitmap drawArea;
-		private const int RADIUS = 18;
+		private const int RADIUS = 16;
 		private Pen pen;
 		private Pen whitePen;
 		private Pen dashedPen;
 		private Color vertColor = Color.Black;
 		private List<(Point point, Color color)> verts;
-		private int vertNumber = 0;
+		private int vertNumber;
 		private Point chosenVert;
 		private int chosenVertNR;
 		private Point mousePosition;
 		private bool mouseIsDown;
-		private Point clickedVert;
-		private int clickedVertNR;
+		private Point new_vertexPosition;
+		private List<(Point p1, Point p2)> edges;
 
 		public Form1()
 		{
@@ -43,18 +45,20 @@ namespace WinFormsApp_project
 			pen = new Pen(Color.Black, 3);
 			dashedPen = new Pen(Brushes.Black, 3);
 			whitePen = new Pen(Brushes.White, 3);
-			dashedPen.DashPattern = new float[] { 3, 3 };
-			whitePen.DashPattern = new float[] { 3, 3 };
+			dashedPen.DashPattern = new float[] { 2, 2 };
+			whitePen.DashPattern = new float[] { 2, 2 };
+			vertNumber = 0;
 			chosenVert = new Point(-1, -1);
 			chosenVertNR = -1;
 			mousePosition = new Point(-1, -1);
-			clickedVert = new Point(-1, -1);
-			clickedVertNR = -1;
+			mouseIsDown = false;
+			new_vertexPosition = new Point();
+			edges = new List<(Point p1, Point p2)>();
 		}
 
 		private void Form1_SizeChanged(object sender, EventArgs e)
 		{
-			int it = 1;
+			int it = 0;
 			var newsize = tableLayoutPanel1.GetControlFromPosition(0, 0).Size;
 			drawArea = new Bitmap(newsize.Width, newsize.Height);
 			workingArea.Image = drawArea;
@@ -63,10 +67,18 @@ namespace WinFormsApp_project
 				g.Clear(Color.LightBlue);
 			}
 
+			foreach (var edge in edges)
+			{
+				using (Graphics g = Graphics.FromImage(drawArea))
+				{
+					g.DrawLine(pen, edge.p1, edge.p2);
+				}
+			}
 			foreach (var v in verts)
 			{
 				using (Graphics g = Graphics.FromImage(drawArea))
 				{
+					g.FillEllipse(Brushes.LightBlue, v.point.X - RADIUS + 2, v.point.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2);
 					g.DrawEllipse(new Pen(v.color, 3), v.point.X - RADIUS, v.point.Y - RADIUS, RADIUS * 2, RADIUS * 2);
 					g.DrawString(it.ToString(),
 						new Font("Ink Free", 12),
@@ -74,6 +86,11 @@ namespace WinFormsApp_project
 						v.point.X, v.point.Y,
 						new StringFormat()
 						{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+
+					if (chosenVertNR != -1 && it == chosenVertNR)
+					{
+						g.DrawEllipse(whitePen, v.point.X - RADIUS, v.point.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+					}
 				}
 				++it;
 			}
@@ -83,7 +100,7 @@ namespace WinFormsApp_project
 
 		private void workingArea_MouseDown(object sender, MouseEventArgs e)
 		{
-			bool flag = false;
+			int flag = -1;
 
 			if (e.Button == MouseButtons.Left)
 			{
@@ -91,30 +108,119 @@ namespace WinFormsApp_project
 				{
 					if (vertNumber > 0)
 					{
+						int it = 0;
 						foreach (var v in verts)
 						{
 							int yDiff = Math.Abs(v.point.Y - e.Y);
 							int xDiff = Math.Abs(v.point.X - e.X);
 
-							if ((yDiff < 2 * RADIUS) && (xDiff < 2 * RADIUS))
+							//if ((yDiff < (2 * RADIUS)) && (xDiff < (2 * RADIUS)))
+							if (yDiff * yDiff + xDiff * xDiff < 4 * (RADIUS + 1) * (RADIUS + 1))
 							{
-								flag = true;
+								flag = it;
+								break;
 							}
+							it++;
 						}
 					}
 
-					if (flag == true) return;
+					if (flag != -1 && chosenVertNR != -1) // add edge
+					{
+						if (flag == chosenVertNR) return;
 
-					g.DrawEllipse(pen, e.X - RADIUS, e.Y - RADIUS, RADIUS * 2, RADIUS * 2);
-					g.DrawString(vertNumber.ToString(),
-						new Font("Ink Free", 12),
-						new SolidBrush(vertColor),
-						e.X, e.Y,
-						new StringFormat()
-						{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+						// remove edge
+						Point tmp = new Point(verts[flag].point.X, verts[flag].point.Y);
+						int itt = 0;
+						bool removeEdgeFlag = false;
+						foreach (var edge in edges)
+						{
+							
+							if (edge.p1.X == tmp.X && edge.p1.Y == tmp.Y)
+							{
+								removeEdgeFlag = true;
+								break;
+							}
+							else if (edge.p2.X == tmp.X && edge.p2.Y == tmp.Y)
+							{
+								removeEdgeFlag = true;
+								break;
+							}
+							itt++;
+						}
+
+						if (removeEdgeFlag == true)
+						{
+							edges.RemoveAt(itt);
+
+							g.Clear(Color.LightBlue);
+
+							int ittt = 0;
+							foreach (var edge in edges)
+							{
+								g.DrawLine(pen, edge.p1, edge.p2);
+							}
+
+							foreach (var v in verts)
+							{
+								g.FillEllipse(Brushes.LightBlue, v.point.X - RADIUS + 2, v.point.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2);
+								g.DrawEllipse(new Pen(v.color, 3), v.point.X - RADIUS, v.point.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+								g.DrawString(ittt.ToString(),
+									new Font("Ink Free", 12),
+									new SolidBrush(v.color),
+									v.point.X, v.point.Y,
+									new StringFormat()
+									{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+								++ittt;
+							}
+							if (chosenVertNR != -1)
+							{
+								g.DrawEllipse(whitePen, chosenVert.X - RADIUS, chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+							}
+							workingArea.Refresh();
+							return;
+						}
+						
+						edges.Add((chosenVert, verts[flag].point));
+						g.DrawLine(pen, chosenVert, verts[flag].point);
+
+						g.FillEllipse(Brushes.LightBlue, chosenVert.X - RADIUS + 2, chosenVert.Y - RADIUS + 2, (RADIUS-2) * 2, (RADIUS-2) * 2);
+
+						int it = 0;
+						foreach (var v in verts)
+						{
+							g.FillEllipse(Brushes.LightBlue, v.point.X - RADIUS + 2, v.point.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2);
+							g.DrawEllipse(new Pen(v.color, 3), v.point.X - RADIUS, v.point.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+							g.DrawString(it.ToString(),
+								new Font("Ink Free", 12),
+								new SolidBrush(v.color),
+								v.point.X, v.point.Y,
+								new StringFormat()
+								{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+
+							++it;
+						}
+
+						g.DrawEllipse(whitePen, chosenVert.X - RADIUS, chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+					}
+					else if (flag == -1) // add vertex
+					{
+						g.FillEllipse(Brushes.LightBlue, e.X - RADIUS + 2, e.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2);
+						g.DrawEllipse(pen, e.X - RADIUS, e.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+						g.DrawString(vertNumber.ToString(),
+							new Font("Ink Free", 12),
+							new SolidBrush(vertColor),
+							e.X, e.Y,
+							new StringFormat()
+							{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+						if (chosenVertNR != -1)
+						{
+							g.DrawEllipse(whitePen, chosenVert.X - RADIUS, chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+						}
+						verts.Add((new Point(e.X, e.Y), vertColor));
+						vertNumber++;
+					}
+
 				}
-				verts.Add((new Point(e.X, e.Y), vertColor));
-				vertNumber++;
 				workingArea.Refresh();
 			}
 			else if (e.Button == MouseButtons.Right)
@@ -169,7 +275,7 @@ namespace WinFormsApp_project
 					{
 						chosenVert.X = verts[iBest].point.X;
 						chosenVert.Y = verts[iBest].point.Y;
-						chosenVertNR = i;
+						chosenVertNR = iBest;
 						g.DrawEllipse(whitePen, chosenVert.X - RADIUS, chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2);
 						workingArea.Refresh();
 					}
@@ -178,30 +284,11 @@ namespace WinFormsApp_project
 				}
 				workingArea.Refresh();
 			}
-			else if (e.Button == MouseButtons.Middle)
+			else if (e.Button == MouseButtons.Middle && chosenVertNR != -1)
 			{
-
-				int yDiffBest = int.MaxValue;
-				int xDiffBest = int.MaxValue;
-
-				int i = 0;
-
-				foreach (var v in verts)
-				{
-					int yDiff = Math.Abs(v.point.Y - e.Y);
-					int xDiff = Math.Abs(v.point.X - e.X);
-
-					if ((yDiff < 2 * RADIUS) && (xDiff < 2 * RADIUS) && yDiff < yDiffBest && xDiff < xDiffBest)
-					{
-						xDiffBest = xDiff;
-						yDiffBest = yDiff;
-						clickedVertNR = i;
-						clickedVert.Y = v.point.Y;
-						clickedVert.X = v.point.X;
-						mouseIsDown = true;
-					}
-					i++;
-				}
+				mousePosition.X = e.X;
+				mousePosition.Y = e.Y;
+				mouseIsDown = true;
 			}
 		}
 
@@ -244,12 +331,39 @@ namespace WinFormsApp_project
 				it++;
 			}
 			verts.RemoveAt(it);
+
+			it = -1;
+			List<int> toRemove = new List<int>();
+			foreach (var edge in edges)
+			{
+				it++;
+				if (edge.p1 == chosenVert)
+				{
+					toRemove.Add(it);
+				}
+				else if (edge.p2 == chosenVert)
+				{
+					toRemove.Add(it);
+				}
+			}
+			toRemove.Reverse();
+			int toRemoveCount = toRemove.Count;
+			for (int i = 0; i < toRemoveCount; ++i)
+			{
+				edges.RemoveAt(toRemove[i]);
+			}
+
 			it = 0;
 			using (Graphics g = Graphics.FromImage(drawArea))
 			{
 				g.Clear(Color.LightBlue);
+				foreach (var edge in edges)
+				{
+					g.DrawLine(pen, edge.p1, edge.p2);
+				}
 				foreach (var v in verts)
 				{
+					g.FillEllipse(Brushes.LightBlue, v.point.X - RADIUS + 2, v.point.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2);
 					g.DrawEllipse(new Pen(v.color, 3), v.point.X - RADIUS, v.point.Y - RADIUS, RADIUS * 2, RADIUS * 2);
 					g.DrawString(it.ToString(),
 						new Font("Ink Free", 12),
@@ -259,6 +373,7 @@ namespace WinFormsApp_project
 						{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
 					++it;
 				}
+
 			}
 			chosenVert.X = -1;
 			chosenVertNR = -1;
@@ -269,23 +384,80 @@ namespace WinFormsApp_project
 
 		private void workingArea_MouseMove(object sender, MouseEventArgs e)
 		{
-			mousePosition.X = e.X;
-			mousePosition.Y = e.Y;
+			new_vertexPosition.X = e.X - mousePosition.X + chosenVert.X;
+
+			/*if (new_vertexPosition.X < 0)
+			{
+				new_vertexPosition.X = 0;
+			}*/
+			/*if (new_vertexPosition.X > this.Size.Width)
+			{
+				new_vertexPosition.X = 0;
+			}*/
+
+			new_vertexPosition.Y = e.Y - mousePosition.Y + chosenVert.Y;
 
 			if (mouseIsDown == true)
 			{
-				if (clickedVertNR != -1)
+				if (chosenVert.X != -1)
 				{
 					using (Graphics g = Graphics.FromImage(drawArea))
 					{
 						g.Clear(Color.LightBlue);
-						g.DrawEllipse(pen, mousePosition.X - RADIUS, mousePosition.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+
+						////g.DrawEllipse(pen, e.X - mousePosition.X + chosenVert.X - RADIUS, e.Y - mousePosition.Y + chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+						g.DrawEllipse(pen, new_vertexPosition.X - RADIUS, e.Y - mousePosition.Y + chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2); //
+						g.DrawString(chosenVertNR.ToString(),
+							new Font("Ink Free", 12),
+							new SolidBrush(vertColor),
+							e.X - mousePosition.X + chosenVert.X, e.Y - mousePosition.Y + chosenVert.Y,
+							new StringFormat()
+							{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
 					}
-					int it = 0;
-					foreach (var v in verts)
+					foreach (var edge in edges)
 					{
+						if (edge.p1 == chosenVert)
+						{
+							
+							using (Graphics g = Graphics.FromImage(drawArea))
+							{
+								////g.DrawLine(pen, edge.p2, new Point(e.X - mousePosition.X + chosenVert.X, e.Y - mousePosition.Y + chosenVert.Y));
+								g.DrawLine(pen, edge.p2, new Point(new_vertexPosition.X, e.Y - mousePosition.Y + chosenVert.Y)); //
+								//g.FillEllipse(Brushes.Red, e.X - mousePosition.X + chosenVert.X - RADIUS + 2, e.Y - mousePosition.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2);
+							}
+							continue;
+						}
+						else if (edge.p2 == chosenVert)
+						{
+							using (Graphics g = Graphics.FromImage(drawArea))
+							{
+								////g.DrawLine(pen, edge.p1, new Point(e.X - mousePosition.X + chosenVert.X, e.Y - mousePosition.Y + chosenVert.Y));
+								g.DrawLine(pen, edge.p1, new Point(new_vertexPosition.X, e.Y - mousePosition.Y + chosenVert.Y)); //
+								//g.FillEllipse(Brushes.Green, e.X - mousePosition.X + chosenVert.X - RADIUS + 2, e.Y - mousePosition.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2);
+							}
+							continue;
+						}
+
 						using (Graphics g = Graphics.FromImage(drawArea))
 						{
+							g.DrawLine(pen, edge.p1, edge.p2);
+							//g.FillEllipse(Brushes.Black, e.X - mousePosition.X + chosenVert.X - RADIUS + 2, e.Y - mousePosition.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2);
+						}
+						
+					}
+					int it = 0;
+					//int it2 = 0;
+					foreach (var v in verts)
+					{
+						if (it == chosenVertNR)
+						{
+							++it;
+							continue;
+						}
+
+						using (Graphics g = Graphics.FromImage(drawArea))
+						{
+							g.FillEllipse(Brushes.LightBlue, v.point.X - RADIUS + 2, v.point.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2);
 							g.DrawEllipse(new Pen(v.color, 3), v.point.X - RADIUS, v.point.Y - RADIUS, RADIUS * 2, RADIUS * 2);
 							g.DrawString(it.ToString(),
 								new Font("Ink Free", 12),
@@ -296,6 +468,19 @@ namespace WinFormsApp_project
 						}
 						++it;
 					}
+					using (Graphics g = Graphics.FromImage(drawArea))
+					{
+						////g.FillEllipse(Brushes.LightBlue, e.X - mousePosition.X + chosenVert.X - RADIUS + 2, e.Y - mousePosition.Y + chosenVert.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2);
+						g.FillEllipse(Brushes.LightBlue, new_vertexPosition.X - RADIUS + 2, e.Y - mousePosition.Y + chosenVert.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2); //
+						g.DrawString(chosenVertNR.ToString(),
+								new Font("Ink Free", 12),
+								new SolidBrush(vertColor),
+								new_vertexPosition.X, e.Y - mousePosition.Y + chosenVert.Y,
+								new StringFormat()
+								{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+						////g.DrawEllipse(whitePen, e.X - mousePosition.X + chosenVert.X - RADIUS, e.Y - mousePosition.Y + chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+						g.DrawEllipse(whitePen, new_vertexPosition.X - RADIUS, e.Y - mousePosition.Y + chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2); //
+					}
 
 				}
 				workingArea.Refresh();
@@ -304,7 +489,288 @@ namespace WinFormsApp_project
 
 		private void workingArea_MouseUp(object sender, MouseEventArgs e)
 		{
-			mouseIsDown = false;
+			if (mouseIsDown == true)
+			{
+				// update vertex ends
+				for (int i = 0; i < edges.Count; ++i)
+				{
+					if (edges[i].p1 == chosenVert)
+					{
+						edges[i] = (new Point(e.X - mousePosition.X + chosenVert.X, e.Y - mousePosition.Y + chosenVert.Y), edges[i].p2);
+					}
+					if (edges[i].p2 == chosenVert)
+					{
+						edges[i] = (edges[i].p1, new Point(e.X - mousePosition.X + chosenVert.X, e.Y - mousePosition.Y + chosenVert.Y));
+					}
+				}
+				
+				
+				chosenVert.X = e.X - mousePosition.X + chosenVert.X;
+				chosenVert.Y = e.Y - mousePosition.Y + chosenVert.Y;
+
+				verts[chosenVertNR] = (new Point(chosenVert.X, chosenVert.Y), vertColor);
+
+				int it = 0;
+				foreach (var v in verts)
+				{
+					using (Graphics g = Graphics.FromImage(drawArea))
+					{
+						g.DrawEllipse(new Pen(v.color, 3), v.point.X - RADIUS, v.point.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+						g.DrawString(it.ToString(),
+							new Font("Ink Free", 12),
+							new SolidBrush(v.color),
+							v.point.X, v.point.Y,
+							new StringFormat()
+							{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+					}
+					++it;
+				}
+
+				if  (chosenVertNR != -1)
+				{
+					using (Graphics g = Graphics.FromImage(drawArea))
+					{
+						g.DrawEllipse(whitePen, chosenVert.X - RADIUS, chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+					}
+				}
+
+				workingArea.Refresh();
+
+				mouseIsDown = false;
+			}
+		}
+
+		private void Form1_KeyDown(object sender, KeyEventArgs e)
+		{
+			if (chosenVertNR != -1)
+			{
+				int it = 0;
+				foreach (var v in verts)
+				{
+					if (v.point.X == chosenVert.X && v.point.Y == chosenVert.Y)
+					{
+						break;
+					}
+					it++;
+				}
+				verts.RemoveAt(it);
+				it = 0;
+				using (Graphics g = Graphics.FromImage(drawArea))
+				{
+					g.Clear(Color.LightBlue);
+					foreach (var v in verts)
+					{
+						g.DrawEllipse(new Pen(v.color, 3), v.point.X - RADIUS, v.point.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+						g.DrawString(it.ToString(),
+							new Font("Ink Free", 12),
+							new SolidBrush(v.color),
+							v.point.X, v.point.Y,
+							new StringFormat()
+							{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+						++it;
+					}
+				}
+				chosenVert.X = -1;
+				chosenVertNR = -1;
+				DeleteButton.Enabled = false;
+				vertNumber--;
+				workingArea.Refresh();
+			}
+		}
+
+		private void SaveButton_Click(object sender, EventArgs e)
+		{
+			using (SaveFileDialog safeDialog = new SaveFileDialog())
+			{ 
+				safeDialog.Filter = "Graph files (*.graph)|*.graph";
+				if (safeDialog.ShowDialog() == DialogResult.OK)
+				{
+					var filename = safeDialog.FileName;
+
+					using (StreamWriter sw = File.CreateText(filename))
+					{
+						foreach (var v in verts)
+						{
+							sw.WriteLine(v.point.X.ToString());
+							sw.WriteLine(v.point.Y.ToString());
+							sw.WriteLine(v.color.ToArgb());
+						}
+						sw.WriteLine("e");
+						foreach (var edge in edges)
+						{
+							sw.WriteLine(edge.p1.X.ToString());
+							sw.WriteLine(edge.p1.Y.ToString());
+							sw.WriteLine(edge.p2.X.ToString());
+							sw.WriteLine(edge.p2.Y.ToString());
+						}
+					}
+
+					MessageBox.Show("File saved");
+				}
+			}
+		}
+
+		private void LoadButton_Click(object sender, EventArgs e)
+		{
+			using (OpenFileDialog openDialog = new OpenFileDialog())
+			{
+				openDialog.Filter = "Graph files (*.graph)|*.graph";
+				if (openDialog.ShowDialog() == DialogResult.OK)
+				{
+					//var filename = openDialog.FileName;
+
+					using (StreamReader sw = new StreamReader(openDialog.OpenFile()))
+					{
+						try
+						{
+							LoadGraph(sw, out verts, out edges);
+
+							using (Graphics g = Graphics.FromImage(drawArea))
+							{
+								g.Clear(Color.LightBlue);
+
+								int it = 0;
+								foreach (var edge in edges)
+								{
+									g.DrawLine(pen, edge.p1, edge.p2);
+								}
+
+
+								foreach (var v in verts)
+								{
+									g.FillEllipse(Brushes.LightBlue, v.point.X - RADIUS + 2, v.point.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2);
+									g.DrawEllipse(new Pen(v.color, 3), v.point.X - RADIUS, v.point.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+									g.DrawString(it.ToString(),
+										new Font("Ink Free", 12),
+										new SolidBrush(v.color),
+										v.point.X, v.point.Y,
+										new StringFormat()
+										{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+
+									++it;
+								}
+
+
+
+							}
+
+							workingArea.Refresh();
+						}
+						catch
+						{
+							MessageBox.Show("Error load");
+							return;
+						}
+					}
+				}
+			}
+		}
+
+		private void LoadGraph(StreamReader stream, out List<(Point point, Color color)> verts, out List<(Point p1, Point p2)> edges)
+		{
+			var newEdges = new List<(Point p1, Point p2)>();
+			var newVerts = new List<(Point point, Color color)>();
+
+			while (!stream.EndOfStream && stream.Peek() != 'e')
+			{
+				var line1 = stream.ReadLine();
+				var line2 = stream.ReadLine();
+				var line3 = stream.ReadLine();
+				newVerts.Add((new Point(int.Parse(line1), int.Parse(line2)), Color.FromArgb(int.Parse(line3))));
+			}
+
+			if (stream.Peek() == 'e')
+				stream.ReadLine();
+
+			while (!stream.EndOfStream && stream.Peek() != 'e')
+			{
+				var line1 = stream.ReadLine();
+				var line2 = stream.ReadLine();
+				var line3 = stream.ReadLine();
+				var line4 = stream.ReadLine();
+				newEdges.Add((new Point(int.Parse(line1), int.Parse(line2)), new Point(int.Parse(line3), int.Parse(line4))));
+			}
+
+
+			verts = newVerts;
+			edges = newEdges;
+		}
+
+		private void ClearButton_Click(object sender, EventArgs e)
+		{
+			verts.Clear();
+			edges.Clear();
+			vertColor = Color.Black;
+			vertNumber = 0;
+			chosenVert = new Point(-1, -1);
+			chosenVertNR = -1;
+
+			using (Graphics g = Graphics.FromImage(drawArea))
+			{
+				g.Clear(Color.LightBlue);
+			}
+
+			workingArea.Refresh();
+		}
+
+		private void PolishLanguageButton_Click(object sender, EventArgs e)
+		{
+			LanguageChanged("pl-PL");
+		}
+
+		private void EnglishLanguageButton_Click(object sender, EventArgs e)
+		{
+			LanguageChanged("en-US");
+		}
+
+		private void LanguageChanged(string lang)
+		{
+			var culture = new CultureInfo(lang);
+			CultureInfo.DefaultThreadCurrentCulture = culture;
+			CultureInfo.DefaultThreadCurrentUICulture = culture;
+			this.Controls.Clear();
+
+			var size = Size;
+			InitializeComponent();
+			Size = size;
+			this.KeyPreview = true;
+			if (chosenVertNR != -1)
+			{
+				DeleteButton.Enabled = true;
+			}
+			//workingArea.Cursor = 
+
+			colorField.BackColor = vertColor;
+			workingArea.Image = drawArea;
+			using (Graphics g = Graphics.FromImage(drawArea))
+			{
+				g.Clear(Color.LightBlue);
+
+				int it = 0;
+				foreach (var edge in edges)
+				{
+					g.DrawLine(pen, edge.p1, edge.p2);
+				}
+
+				foreach (var v in verts)
+				{
+					g.FillEllipse(Brushes.LightBlue, v.point.X - RADIUS + 2, v.point.Y - RADIUS + 2, (RADIUS - 2) * 2, (RADIUS - 2) * 2);
+					g.DrawEllipse(new Pen(v.color, 3), v.point.X - RADIUS, v.point.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+					g.DrawString(it.ToString(),
+						new Font("Ink Free", 12),
+						new SolidBrush(v.color),
+						v.point.X, v.point.Y,
+						new StringFormat()
+						{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+					++it;
+				}
+				if (chosenVertNR != -1)
+				{
+					g.DrawEllipse(whitePen, chosenVert.X - RADIUS, chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+				}
+			}
+			workingArea.Refresh();
+			ColorButton.Focus();
 		}
 	}
 }
