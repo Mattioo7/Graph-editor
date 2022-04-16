@@ -302,18 +302,22 @@ namespace WinFormsApp_project
 				colorField.BackColor = vertColor;
 			}
 
-			verts[chosenVertNR] = (new Point(verts[chosenVertNR].point.X, verts[chosenVertNR].point.Y), vertColor);
-			var v = verts[chosenVertNR];
-			using (Graphics g = Graphics.FromImage(drawArea))
+			if (chosenVertNR != -1)
 			{
-				g.DrawEllipse(new Pen(v.color, 3), v.point.X - RADIUS, v.point.Y - RADIUS, RADIUS * 2, RADIUS * 2);
-				g.DrawString(chosenVertNR.ToString(),
-					new Font("Ink Free", 12),
-					new SolidBrush(v.color),
-					v.point.X, v.point.Y,
-					new StringFormat()
-					{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
-				g.DrawEllipse(whitePen, chosenVert.X - RADIUS, chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+				verts[chosenVertNR] = (new Point(verts[chosenVertNR].point.X, verts[chosenVertNR].point.Y), vertColor);
+
+				var v = verts[chosenVertNR];
+				using (Graphics g = Graphics.FromImage(drawArea))
+				{
+					g.DrawEllipse(new Pen(v.color, 3), v.point.X - RADIUS, v.point.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+					g.DrawString(chosenVertNR.ToString(),
+						new Font("Ink Free", 12),
+						new SolidBrush(v.color),
+						v.point.X, v.point.Y,
+						new StringFormat()
+						{ Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+					g.DrawEllipse(whitePen, chosenVert.X - RADIUS, chosenVert.Y - RADIUS, RADIUS * 2, RADIUS * 2);
+				}
 			}
 
 			workingArea.Refresh();
